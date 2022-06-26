@@ -28,69 +28,78 @@ struct Window
 
 Window window;
 
-struct Screen
+struct Display
 {
-  int   width  = 320;
-  int   height = 240;
-  float aspect = 320.0f / 240.0f;
+  int    width   = 320;
+  int    height  = 240;
+  float  aspect  = 320.0f / 240.0f;
+  GLuint program = 0;
+  GLuint vbo     = 0;
+  GLuint texture = 0;
+};
+
+Display display;
+
+struct VPU
+{
   GLuint program = 0;
   GLuint vbo = 0;
   GLuint tex = 0;
 };
 
-Screen screen;
+VPU vpu;
 
 // --------------------------------
 
-void updateScreenVBO()
+void updateDisplay()
 {
   GLfloat vertices[16];
 
-  const GLfloat screen_size = 1.0f;
+  const GLfloat display_size = 0.95f;
 
-  if(window.aspect < screen.aspect)
+  if(window.aspect < display.aspect)     // Portrait Device
   {
-    vertices[0]  =  screen_size;
-    vertices[1]  =  screen_size * window.aspect / screen.aspect;
-    vertices[2]  =  screen.width;
+    vertices[0]  =  display_size;
+    vertices[1]  =  display_size * window.aspect / display.aspect;
+    vertices[2]  =  1.0f; // display.width / 128.0f;
     vertices[3]  =  0.0f;
 
-    vertices[4]  = -screen_size;
-    vertices[5]  =  screen_size * window.aspect / screen.aspect;
+    vertices[4]  = -display_size;
+    vertices[5]  =  display_size * window.aspect / display.aspect;
     vertices[6]  =  0.0f;
     vertices[7]  =  0.0f;
 
-    vertices[8]  =  screen_size;
-    vertices[9]  = -screen_size * window.aspect / screen.aspect;
-    vertices[10] =  screen.width;
-    vertices[11] =  screen.height;
+    vertices[8]  =  display_size;
+    vertices[9]  = -display_size * window.aspect / display.aspect;
+    vertices[10] =  1.0f; // display.width / 128.0f;
+    vertices[11] =  1.0f; // display.height / 48.0f;
 
-    vertices[12] = -screen_size;
-    vertices[13] = -screen_size * window.aspect / screen.aspect;
+    vertices[12] = -display_size;
+    vertices[13] = -display_size * window.aspect / display.aspect;
     vertices[14] =  0.0f;
-    vertices[15] =  screen.height;
+    vertices[15] =  1.0f; // display.height / 48.0f;
   }
-  else
+  else                                  // Landscape Device
   {
-    vertices[0]  =  screen_size * screen.aspect / window.aspect;
-    vertices[1]  =  screen_size;
-    vertices[2]  =  screen.width;
+    vertices[0]  =  display_size * display.aspect / window.aspect;
+    vertices[1]  =  display_size;
+    vertices[2]  =  1.0f; // display.width / 128.0f;
     vertices[3]  =  0.0f;
 
-    vertices[4]  = -screen_size * screen.aspect / window.aspect;
-    vertices[5]  =  screen_size;
+    vertices[4]  = -display_size * display.aspect / window.aspect;
+    vertices[5]  =  display_size;
     vertices[6]  =  0.0f;
     vertices[7]  =  0.0f;
 
-    vertices[8]  =  screen_size * screen.aspect / window.aspect;
-    vertices[9]  = -screen_size;
-    vertices[10] =  screen.width;
-    vertices[11] =  screen.height;
+    vertices[8]  =  display_size * display.aspect / window.aspect;
+    vertices[9]  = -display_size;
+    vertices[10] =  1.0f; // display.width / 128.0f;
+    vertices[11] =  1.0f; // display.height / 48.0f;
 
-    vertices[12] = -screen_size * screen.aspect / window.aspect;
-    vertices[13] = -screen_size;
+    vertices[12] = -display_size * display.aspect / window.aspect;
+    vertices[13] = -display_size;
     vertices[14] =  0.0f;
-    vertices[15] =  screen.height;
+    vertices[15] =  1.0f; // display.height / 48.0f;
   }
 
   glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
@@ -105,22 +114,22 @@ void resizeWindow(int width, int height)
   window.height = height;
   window.aspect = (float)width / (float)height;
 
-  updateScreenVBO();
+  updateDisplay();
 
-  printf("Window: %4d x %4d\n", width, height);
+  printf("Window: %4d x %4d\n", window.width, window.height);
 }
 
 // --------------------------------
 
-void resizeScreen(int width, int height)
+void resizeDisplay(int width, int height)
 {
-  screen.width = width;
-  screen.height = height;
-  screen.aspect = (float)width / (float)height;
+  display.width = width;
+  display.height = height;
+  display.aspect = (float)width / (float)height;
 
-  updateScreenVBO();
+  updateDisplay();
 
-  printf("Screen: %4d x %4d\n", width, height);
+  printf("Display: %4d x %4d\n", display.width, display.height);
 }
 
 // --------------------------------
@@ -171,14 +180,14 @@ bool initOpenGL(void)
   printf("%s\n",glGetString(GL_VERSION));
   printf("%s\n",glGetString(GL_SHADING_LANGUAGE_VERSION));
 
-  screen.program = createProgram(vertex_shader_source, fragment_shader_source);
+  display.program = createProgram(pixel_upscale_vs, pixel_upscale_fs);
 
-  if(!screen.program) { return false; }
+  if(!display.program) { return false; }
 
-  glUseProgram(screen.program);
+  glUseProgram(display.program);
 
-  GLint texSamplerUniformLoc = glGetUniformLocation(screen.program, "texSampler");
-  glUniform1i(texSamplerUniformLoc, 0);
+  GLint sampler_location = glGetUniformLocation(display.program, "sampler");
+  glUniform1i(sampler_location, 0);
 
   unsigned char font_image[128 * 48];
   const unsigned int* font_bitmap_ptr = font_bitmap;
@@ -223,12 +232,13 @@ bool initOpenGL(void)
     }
   }
 
-  screen.tex = createTexture(128, 48, font_image, GL_R8, GL_RED, GL_UNSIGNED_BYTE);
+  display.texture = loadTexture("doom.png");
+  // display.texture = createTexture(128, 48, font_image, GL_R8, GL_RED, GL_UNSIGNED_BYTE);
 
-  if(!screen.tex) { return false; }
+  if(!display.texture) { return false; }
 
-  glGenBuffers(1, &screen.vbo);
-  glBindBuffer(GL_ARRAY_BUFFER, screen.vbo);
+  glGenBuffers(1, &display.vbo);
+  glBindBuffer(GL_ARRAY_BUFFER, display.vbo);
   glBufferData(GL_ARRAY_BUFFER, 4 * 4 * sizeof(GLfloat), nullptr, GL_STATIC_DRAW);
 
   glEnableVertexAttribArray(VertexAttribute::POSITION);
@@ -301,9 +311,9 @@ void update(void)
 
 void shutdown(void)
 {
-  glDeleteProgram(screen.program);
-  glDeleteBuffers(1, &screen.vbo);
-  glDeleteTextures(1, &screen.tex);
+  glDeleteProgram(display.program);
+  glDeleteBuffers(1, &display.vbo);
+  glDeleteTextures(1, &display.texture);
 
   SDL_Quit();
 }
