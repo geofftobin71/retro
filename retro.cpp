@@ -36,6 +36,7 @@ struct Display
   GLuint program = 0;
   GLuint vbo     = 0;
   GLuint texture = 0;
+  GLint  screen_size_location = 0;
 };
 
 Display display;
@@ -51,11 +52,11 @@ VPU vpu;
 
 // --------------------------------
 
-void updateDisplay()
+void updateDisplayVBO()
 {
   GLfloat vertices[16];
 
-  const GLfloat display_size = 0.95f;
+  const GLfloat display_size = window.width > 320 ? 0.95f : 1.0f;
 
   if(window.aspect < display.aspect)     // Portrait Device
   {
@@ -114,7 +115,7 @@ void resizeWindow(int width, int height)
   window.height = height;
   window.aspect = (float)width / (float)height;
 
-  updateDisplay();
+  updateDisplayVBO();
 
   printf("Window: %4d x %4d\n", window.width, window.height);
 }
@@ -127,7 +128,10 @@ void resizeDisplay(int width, int height)
   display.height = height;
   display.aspect = (float)width / (float)height;
 
-  updateDisplay();
+  updateDisplayVBO();
+
+  glUseProgram(display.program);
+  glUniform2f(display.screen_size_location, display.width, display.height);
 
   printf("Display: %4d x %4d\n", display.width, display.height);
 }
@@ -180,6 +184,10 @@ bool initOpenGL(void)
   printf("%s\n",glGetString(GL_VERSION));
   printf("%s\n",glGetString(GL_SHADING_LANGUAGE_VERSION));
 
+  glGenBuffers(1, &display.vbo);
+  glBindBuffer(GL_ARRAY_BUFFER, display.vbo);
+  glBufferData(GL_ARRAY_BUFFER, 4 * 4 * sizeof(GLfloat), nullptr, GL_STATIC_DRAW);
+
   display.program = createProgram(pixel_upscale_vs, pixel_upscale_fs);
 
   if(!display.program) { return false; }
@@ -194,17 +202,16 @@ bool initOpenGL(void)
   glEnableVertexAttribArray(uv_location);
   glVertexAttribPointer(uv_location, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (const void*)(2 * sizeof(GLfloat)));
 
-  GLint sampler_location = glGetUniformLocation(display.program, "sampler");
-  glUniform1i(sampler_location, 0);
+  GLint screen_sampler_location = glGetUniformLocation(display.program, "screen_sampler");
+  glUniform1i(screen_sampler_location, 0);
+
+  display.screen_size_location = glGetUniformLocation(display.program, "screen_size");
+  glUniform2f(display.screen_size_location, display.width, display.height);
 
   display.texture = loadTexture("doom.png");
   // display.texture = loadFont();
 
   if(!display.texture) { return false; }
-
-  glGenBuffers(1, &display.vbo);
-  glBindBuffer(GL_ARRAY_BUFFER, display.vbo);
-  glBufferData(GL_ARRAY_BUFFER, 4 * 4 * sizeof(GLfloat), nullptr, GL_STATIC_DRAW);
 
   resizeWindow(window.width, window.height);
 

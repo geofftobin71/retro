@@ -6,13 +6,11 @@ R"VS(#version 300 es
 in vec2 position;
 in vec2 uv;
 out vec2 pixel;
+uniform vec2 screen_size;
 void main()
 {
-  const float w = 320.0;
-  const float h = 240.0;
-
   gl_Position = vec4(position, 0.0, 1.0);
-  pixel = uv * vec2(w,h);
+  pixel = uv * screen_size;
 }
 )VS";
 
@@ -21,29 +19,23 @@ R"FS(#version 300 es
 precision highp float;
 in vec2 pixel;
 out vec4 color;
-uniform sampler2D sampler;
+uniform vec2 screen_size;
+uniform sampler2D screen_sampler;
 void main()
 {
-  const float w = 320.0;
-  const float h = 240.0;
-
   vec2 alpha = 0.7 * vec2(dFdx(pixel.x), dFdy(pixel.y));
   vec2 x = fract(pixel);
   vec2 x_ = clamp(0.5 / alpha * x, 0.0, 0.5) + clamp(0.5 / alpha * (x - 1.0) + 0.5, 0.0, 0.5);
 
-  vec2 uv_ = (floor(pixel) + x_) / vec2(w, h);
+  vec2 uv_ = (floor(pixel) + x_) / screen_size;
 
-  color = texture(sampler, uv_);
+  color = texture(screen_sampler, uv_);
 }
 )FS";
 
+/*
 const char* text_mode_vs =
 R"VS(#version 300 es
-/* layout(std140) uniform Registers
-{
-  float wAspect;
-  float sAspect;
-} registers; */
 in vec2 position;
 in vec2 uv;
 out vec2 pixel;
@@ -83,5 +75,6 @@ void main()
   color = mix(bg, fg, c);
 }
 )FS";
+*/
 
 #endif
