@@ -52,6 +52,79 @@ VPU vpu;
 
 // --------------------------------
 
+bool initWindow()
+{
+  window.sdl_window = SDL_CreateWindow("Retro", 
+    SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+    window.width, window.height, 
+    SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_SHOWN);
+
+  if(!window.sdl_window)
+  {
+    printf("Failed to create SDL window\n");
+    return false;
+  }
+
+  window.id = SDL_GetWindowID(window.sdl_window);
+
+  return true;
+}
+
+// --------------------------------
+
+bool initDisplay()
+{
+  glGenBuffers(1, &display.vbo);
+  glBindBuffer(GL_ARRAY_BUFFER, display.vbo);
+  glBufferData(GL_ARRAY_BUFFER, 4 * 4 * sizeof(GLfloat), nullptr, GL_STATIC_DRAW);
+
+  display.program = createProgram(pixel_upscale_vs, pixel_upscale_fs);
+
+  if(!display.program) { return false; }
+
+  glUseProgram(display.program);
+
+  GLint position_location = glGetAttribLocation(display.program, "position");
+  glEnableVertexAttribArray(position_location);
+  glVertexAttribPointer(position_location, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), 0);
+
+  GLint uv_location = glGetAttribLocation(display.program, "uv");
+  glEnableVertexAttribArray(uv_location);
+  glVertexAttribPointer(uv_location, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (const void*)(2 * sizeof(GLfloat)));
+
+  GLint screen_sampler_location = glGetUniformLocation(display.program, "screen_sampler");
+  glUniform1i(screen_sampler_location, 0);
+
+  display.screen_size_location = glGetUniformLocation(display.program, "screen_size");
+  glUniform2f(display.screen_size_location, display.width, display.height);
+
+  display.texture = loadTexture("doom.png");
+
+  if(!display.texture) { return false; }
+
+  return true;
+}
+
+// --------------------------------
+
+void showDisplay()
+{
+  glUseProgram(display.program);
+  glBindBuffer(GL_ARRAY_BUFFER, display.vbo);
+  glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+}
+
+// --------------------------------
+
+void destroyDisplay()
+{
+  glDeleteProgram(display.program);
+  glDeleteBuffers(1, &display.vbo);
+  glDeleteTextures(1, &display.texture);
+}
+
+// --------------------------------
+
 void updateDisplayVBO()
 {
   GLfloat vertices[16];
@@ -62,7 +135,7 @@ void updateDisplayVBO()
   {
     vertices[0]  =  display_size;
     vertices[1]  =  display_size * window.aspect / display.aspect;
-    vertices[2]  =  1.0f; // display.width / 128.0f;
+    vertices[2]  =  1.0f;
     vertices[3]  =  0.0f;
 
     vertices[4]  = -display_size;
@@ -72,19 +145,19 @@ void updateDisplayVBO()
 
     vertices[8]  =  display_size;
     vertices[9]  = -display_size * window.aspect / display.aspect;
-    vertices[10] =  1.0f; // display.width / 128.0f;
-    vertices[11] =  1.0f; // display.height / 48.0f;
+    vertices[10] =  1.0f;
+    vertices[11] =  1.0f;
 
     vertices[12] = -display_size;
     vertices[13] = -display_size * window.aspect / display.aspect;
     vertices[14] =  0.0f;
-    vertices[15] =  1.0f; // display.height / 48.0f;
+    vertices[15] =  1.0f;
   }
   else                                  // Landscape Device
   {
     vertices[0]  =  display_size * display.aspect / window.aspect;
     vertices[1]  =  display_size;
-    vertices[2]  =  1.0f; // display.width / 128.0f;
+    vertices[2]  =  1.0f;
     vertices[3]  =  0.0f;
 
     vertices[4]  = -display_size * display.aspect / window.aspect;
@@ -94,15 +167,16 @@ void updateDisplayVBO()
 
     vertices[8]  =  display_size * display.aspect / window.aspect;
     vertices[9]  = -display_size;
-    vertices[10] =  1.0f; // display.width / 128.0f;
-    vertices[11] =  1.0f; // display.height / 48.0f;
+    vertices[10] =  1.0f;
+    vertices[11] =  1.0f;
 
     vertices[12] = -display_size * display.aspect / window.aspect;
     vertices[13] = -display_size;
     vertices[14] =  0.0f;
-    vertices[15] =  1.0f; // display.height / 48.0f;
+    vertices[15] =  1.0f;
   }
 
+  glBindBuffer(GL_ARRAY_BUFFER, display.vbo);
   glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
 }
 
@@ -145,18 +219,7 @@ bool initSDL(void)
     return false;
   }
 
-  window.sdl_window = SDL_CreateWindow("Retro", 
-      SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-      window.width, window.height, 
-      SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_SHOWN);
-
-  if(!window.sdl_window)
-  {
-    printf("Failed to create SDL window\n");
-    return false;
-  }
-
-  window.id = SDL_GetWindowID(window.sdl_window);
+  if(!initWindow()) { return false; }
 
   return true;
 }
@@ -184,34 +247,7 @@ bool initOpenGL(void)
   printf("%s\n",glGetString(GL_VERSION));
   printf("%s\n",glGetString(GL_SHADING_LANGUAGE_VERSION));
 
-  glGenBuffers(1, &display.vbo);
-  glBindBuffer(GL_ARRAY_BUFFER, display.vbo);
-  glBufferData(GL_ARRAY_BUFFER, 4 * 4 * sizeof(GLfloat), nullptr, GL_STATIC_DRAW);
-
-  display.program = createProgram(pixel_upscale_vs, pixel_upscale_fs);
-
-  if(!display.program) { return false; }
-
-  glUseProgram(display.program);
-
-  GLint position_location = glGetAttribLocation(display.program, "position");
-  glEnableVertexAttribArray(position_location);
-  glVertexAttribPointer(position_location, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), 0);
-
-  GLint uv_location = glGetAttribLocation(display.program, "uv");
-  glEnableVertexAttribArray(uv_location);
-  glVertexAttribPointer(uv_location, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (const void*)(2 * sizeof(GLfloat)));
-
-  GLint screen_sampler_location = glGetUniformLocation(display.program, "screen_sampler");
-  glUniform1i(screen_sampler_location, 0);
-
-  display.screen_size_location = glGetUniformLocation(display.program, "screen_size");
-  glUniform2f(display.screen_size_location, display.width, display.height);
-
-  display.texture = loadTexture("doom.png");
-  // display.texture = loadFont();
-
-  if(!display.texture) { return false; }
+  if(!initDisplay()) { return false; }
 
   resizeWindow(window.width, window.height);
 
@@ -234,7 +270,7 @@ void render(void)
 {
   glClear(GL_COLOR_BUFFER_BIT);
 
-  glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+  showDisplay();
 
   SDL_GL_SwapWindow(window.sdl_window);
 }
@@ -277,9 +313,7 @@ void update(void)
 
 void shutdown(void)
 {
-  glDeleteProgram(display.program);
-  glDeleteBuffers(1, &display.vbo);
-  glDeleteTextures(1, &display.texture);
+  destroyDisplay();
 
   SDL_Quit();
 }
