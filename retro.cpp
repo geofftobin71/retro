@@ -186,66 +186,25 @@ bool initOpenGL(void)
 
   glUseProgram(display.program);
 
+  GLint position_location = glGetAttribLocation(display.program, "position");
+  glEnableVertexAttribArray(position_location);
+  glVertexAttribPointer(position_location, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), 0);
+
+  GLint uv_location = glGetAttribLocation(display.program, "uv");
+  glEnableVertexAttribArray(uv_location);
+  glVertexAttribPointer(uv_location, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (const void*)(2 * sizeof(GLfloat)));
+
   GLint sampler_location = glGetUniformLocation(display.program, "sampler");
   glUniform1i(sampler_location, 0);
 
-  unsigned char font_image[128 * 48];
-  const unsigned int* font_bitmap_ptr = font_bitmap;
-
-  for(Uint32 tile_counter = 0; tile_counter < 16 * 6; ++tile_counter)
-  {
-    const Uint32 tile_x = tile_counter & 0xF;
-    const Uint32 tile_y = tile_counter >> 4;
-
-    unsigned int font_bits = *font_bitmap_ptr++;
-
-    for(Uint32 i = 0; i < 32; ++i)
-    {
-      const Uint32 px = i & 0x7;
-      const Uint32 py = i >> 3;
-
-      if(font_bits & (1 << i))
-      {
-        font_image[128 * (tile_y * 8 + py) + (tile_x * 8 + px)] = 0xFF;
-      }
-      else
-      {
-        font_image[128 * (tile_y * 8 + py) + (tile_x * 8 + px)] = 0x00;
-      }
-    }
-
-    font_bits = *font_bitmap_ptr++;
-
-    for(Uint32 i = 0; i < 32; ++i)
-    {
-      const Uint32 px = i & 0x7;
-      const Uint32 py = (i >> 3) + 4;
-
-      if(font_bits & (1 << i))
-      {
-        font_image[128 * (tile_y * 8 + py) + (tile_x * 8 + px)] = 0xFF;
-      }
-      else
-      {
-        font_image[128 * (tile_y * 8 + py) + (tile_x * 8 + px)] = 0x00;
-      }
-    }
-  }
-
   display.texture = loadTexture("doom.png");
-  // display.texture = createTexture(128, 48, font_image, GL_R8, GL_RED, GL_UNSIGNED_BYTE);
+  // display.texture = loadFont();
 
   if(!display.texture) { return false; }
 
   glGenBuffers(1, &display.vbo);
   glBindBuffer(GL_ARRAY_BUFFER, display.vbo);
   glBufferData(GL_ARRAY_BUFFER, 4 * 4 * sizeof(GLfloat), nullptr, GL_STATIC_DRAW);
-
-  glEnableVertexAttribArray(VertexAttribute::POSITION);
-  glVertexAttribPointer(VertexAttribute::POSITION, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), 0);
-
-  glEnableVertexAttribArray(VertexAttribute::UV);
-  glVertexAttribPointer(VertexAttribute::UV, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (const void*)(2 * sizeof(GLfloat)));
 
   resizeWindow(window.width, window.height);
 

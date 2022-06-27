@@ -72,9 +72,6 @@ GLuint createProgram(const char* _vertex_shader_source, const char* _fragment_sh
   glAttachShader(program_id, vertex_shader_id);
   glAttachShader(program_id, fragment_shader_id);
 
-  glBindAttribLocation(program_id, VertexAttribute::POSITION, "position");
-  glBindAttribLocation(program_id, VertexAttribute::UV, "uv");
-
   glLinkProgram(program_id);
 
   int ok;
