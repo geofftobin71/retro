@@ -33,9 +33,13 @@ struct Display
   int    width   = 320;
   int    height  = 240;
   float  aspect  = 320.0f / 240.0f;
+
   GLuint program = 0;
+  GLuint vao     = 0;
   GLuint vbo     = 0;
   GLuint texture = 0;
+
+  GLuint texture_unit = 0;
   GLint  screen_size_location = 0;
 };
 
@@ -44,8 +48,13 @@ Display display;
 struct VPU
 {
   GLuint program = 0;
-  GLuint vbo = 0;
-  GLuint tex = 0;
+  GLuint vao     = 0;
+  GLuint vbo     = 0;
+  GLuint fbo     = 0;
+  GLuint texture = 0;
+
+  GLuint texture_unit = 1;
+  GLint  screen_size_location = 0;
 };
 
 VPU vpu;
@@ -74,6 +83,9 @@ bool initWindow()
 
 bool initDisplay()
 {
+  glGenVertexArrays(1, &display.vao);
+  glBindVertexArray(display.vao);
+
   glGenBuffers(1, &display.vbo);
   glBindBuffer(GL_ARRAY_BUFFER, display.vbo);
   glBufferData(GL_ARRAY_BUFFER, 4 * 4 * sizeof(GLfloat), nullptr, GL_STATIC_DRAW);
@@ -93,12 +105,12 @@ bool initDisplay()
   glVertexAttribPointer(uv_location, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (const void*)(2 * sizeof(GLfloat)));
 
   GLint screen_sampler_location = glGetUniformLocation(display.program, "screen_sampler");
-  glUniform1i(screen_sampler_location, 0);
+  glUniform1i(screen_sampler_location, display.texture_unit);
 
   display.screen_size_location = glGetUniformLocation(display.program, "screen_size");
   glUniform2f(display.screen_size_location, display.width, display.height);
 
-  display.texture = loadTexture("doom.png");
+  display.texture = createTexture(display.texture_unit, display.width, display.height, nullptr, GL_RGB, GL_RGB, GL_UNSIGNED_BYTE);
 
   if(!display.texture) { return false; }
 
@@ -109,8 +121,12 @@ bool initDisplay()
 
 void showDisplay()
 {
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  glViewport(0, 0, window.width, window.height);
+  glClearColor(0.53f, 0.48f, 0.87f, 1.0f);
+  glClear(GL_COLOR_BUFFER_BIT);
   glUseProgram(display.program);
-  glBindBuffer(GL_ARRAY_BUFFER, display.vbo);
+  glBindVertexArray(display.vao);
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
@@ -120,6 +136,7 @@ void destroyDisplay()
 {
   glDeleteProgram(display.program);
   glDeleteBuffers(1, &display.vbo);
+  glDeleteVertexArrays(1, &display.vao);
   glDeleteTextures(1, &display.texture);
 }
 
@@ -184,7 +201,6 @@ void updateDisplayVBO()
 
 void resizeWindow(int width, int height)
 {
-  glViewport(0, 0, width, height);
   window.width = width;
   window.height = height;
   window.aspect = (float)width / (float)height;
@@ -204,10 +220,115 @@ void resizeDisplay(int width, int height)
 
   updateDisplayVBO();
 
+  glUseProgram(vpu.program);
+  glUniform2f(vpu.screen_size_location, display.width, display.height);
+
   glUseProgram(display.program);
   glUniform2f(display.screen_size_location, display.width, display.height);
 
+  resizeTexture(display.texture_unit, display.texture, display.width, display.height, GL_RGB, GL_RGB, GL_UNSIGNED_BYTE);
+
   printf("Display: %4d x %4d\n", display.width, display.height);
+}
+
+// --------------------------------
+
+bool initVPU()
+{
+  GLfloat vertices[16];
+
+  vertices[0]  =  1.0f;
+  vertices[1]  =  1.0f;
+  vertices[2]  =  1.0f;
+  vertices[3]  =  1.0f;
+
+  vertices[4]  = -1.0f;
+  vertices[5]  =  1.0f;
+  vertices[6]  =  0.0f;
+  vertices[7]  =  1.0f;
+
+  vertices[8]  =  1.0f;
+  vertices[9]  = -1.0f;
+  vertices[10] =  1.0f;
+  vertices[11] =  0.0f;
+
+  vertices[12] = -1.0f;
+  vertices[13] = -1.0f;
+  vertices[14] =  0.0f;
+  vertices[15] =  0.0f;
+
+  glGenVertexArrays(1, &vpu.vao);
+  glBindVertexArray(vpu.vao);
+
+  glGenBuffers(1, &vpu.vbo);
+  glBindBuffer(GL_ARRAY_BUFFER, vpu.vbo);
+  glBufferData(GL_ARRAY_BUFFER, 4 * 4 * sizeof(GLfloat), vertices, GL_STATIC_DRAW);
+
+  vpu.program = createProgram(text_mode_vs, text_mode_fs);
+
+  if(!vpu.program) { return false; }
+
+  glUseProgram(vpu.program);
+
+  GLint position_location = glGetAttribLocation(vpu.program, "position");
+  glEnableVertexAttribArray(position_location);
+  glVertexAttribPointer(position_location, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), 0);
+
+  GLint uv_location = glGetAttribLocation(vpu.program, "uv");
+  glEnableVertexAttribArray(uv_location);
+  glVertexAttribPointer(uv_location, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (const void*)(2 * sizeof(GLfloat)));
+
+  GLint font_sampler_location = glGetUniformLocation(vpu.program, "font_sampler");
+  glUniform1i(font_sampler_location, vpu.texture_unit);
+
+  vpu.screen_size_location = glGetUniformLocation(vpu.program, "screen_size");
+  glUniform2f(vpu.screen_size_location, display.width, display.height);
+
+  vpu.texture = loadFont(vpu.texture_unit);
+  // vpu.texture = loadTexture(vpu.texture_unit, "doom.png");
+
+  if(!vpu.texture) { return false; }
+
+  glGenFramebuffers(1, &vpu.fbo);
+  glBindFramebuffer(GL_FRAMEBUFFER, vpu.fbo);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, display.texture, 0);
+  GLenum DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
+  glDrawBuffers(1, DrawBuffers);
+  if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+  {
+    printf("Failed to create Framebuffer\n");
+    return false;
+  }
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+  return true;
+}
+
+// --------------------------------
+
+void renderVPU()
+{
+  glActiveTexture(GL_TEXTURE0 + display.texture_unit);
+  glBindTexture(GL_TEXTURE_2D, 0);
+  glBindFramebuffer(GL_FRAMEBUFFER, vpu.fbo);
+  glViewport(0, 0, display.width, display.height);
+  glClearColor(0.28f, 0.23f, 0.67f, 1.0f);
+  glClear(GL_COLOR_BUFFER_BIT);
+  glUseProgram(vpu.program);
+  glBindVertexArray(vpu.vao);
+  glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+  glBindTexture(GL_TEXTURE_2D, display.texture);
+}
+
+// --------------------------------
+
+void destroyVPU()
+{
+  glDeleteProgram(vpu.program);
+  glDeleteBuffers(1, &vpu.vbo);
+  glDeleteVertexArrays(1, &vpu.vao);
+  glDeleteTextures(1, &vpu.texture);
+  glDeleteFramebuffers(1, &vpu.fbo);
 }
 
 // --------------------------------
@@ -242,12 +363,11 @@ bool initOpenGL(void)
     return false;
   }
 
-  glClearColor(0.53f, 0.48f, 0.87f, 1.0f);
-
   printf("%s\n",glGetString(GL_VERSION));
   printf("%s\n",glGetString(GL_SHADING_LANGUAGE_VERSION));
 
   if(!initDisplay()) { return false; }
+  if(!initVPU()) { return false; }
 
   resizeWindow(window.width, window.height);
 
@@ -268,8 +388,7 @@ bool startup(void)
 
 void render(void)
 {
-  glClear(GL_COLOR_BUFFER_BIT);
-
+  renderVPU();
   showDisplay();
 
   SDL_GL_SwapWindow(window.sdl_window);
@@ -314,6 +433,7 @@ void update(void)
 void shutdown(void)
 {
   destroyDisplay();
+  destroyVPU();
 
   SDL_Quit();
 }

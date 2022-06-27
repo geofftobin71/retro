@@ -1,6 +1,6 @@
 
 #include "font.h"
-#include "texture.h"
+#include "opengl.h"
 
 // --------------------------------
 
@@ -36,22 +36,22 @@ const unsigned int font_bitmap[]=
 
 // --------------------------------
 
-GLuint loadFont()
+GLuint loadFont(GLenum _texture_unit)
 {
   unsigned char font_image[128 * 48];
   const unsigned int* font_bitmap_ptr = font_bitmap;
 
-  for(Uint32 tile_counter = 0; tile_counter < 16 * 6; ++tile_counter)
+  for(uint32_t tile_counter = 0; tile_counter < 16 * 6; ++tile_counter)
   {
-    const Uint32 tile_x = tile_counter & 0xF;
-    const Uint32 tile_y = tile_counter >> 4;
+    const uint32_t tile_x = tile_counter & 0xF;
+    const uint32_t tile_y = tile_counter >> 4;
 
     unsigned int font_bits = *font_bitmap_ptr++;
 
-    for(Uint32 i = 0; i < 32; ++i)
+    for(uint32_t i = 0; i < 32; ++i)
     {
-      const Uint32 px = i & 0x7;
-      const Uint32 py = i >> 3;
+      const uint32_t px = i & 0x7;
+      const uint32_t py = i >> 3;
 
       if(font_bits & (1 << i))
       {
@@ -65,10 +65,10 @@ GLuint loadFont()
 
     font_bits = *font_bitmap_ptr++;
 
-    for(Uint32 i = 0; i < 32; ++i)
+    for(uint32_t i = 0; i < 32; ++i)
     {
-      const Uint32 px = i & 0x7;
-      const Uint32 py = (i >> 3) + 4;
+      const uint32_t px = i & 0x7;
+      const uint32_t py = (i >> 3) + 4;
 
       if(font_bits & (1 << i))
       {
@@ -81,6 +81,6 @@ GLuint loadFont()
     }
   }
 
-  return createTexture(128, 48, font_image, GL_R8, GL_RED, GL_UNSIGNED_BYTE);
+  return createTexture(_texture_unit, 128, 48, font_image, GL_R8, GL_RED, GL_UNSIGNED_BYTE);
 }
 

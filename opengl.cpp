@@ -99,7 +99,7 @@ GLuint createProgram(const char* _vertex_shader_source, const char* _fragment_sh
 
 // --------------------------------
 
-GLuint loadTexture(const char* _filename)
+GLuint loadTexture(GLenum _texture_unit, const char* _filename)
 {
   GLuint texture_id = 0;
 
@@ -140,6 +140,8 @@ GLuint loadTexture(const char* _filename)
 
     if(format != -1)
     {
+      glActiveTexture(GL_TEXTURE0 + _texture_unit);
+
       glGenTextures(1, &texture_id);
 
       glBindTexture(GL_TEXTURE_2D, texture_id);
@@ -161,8 +163,10 @@ GLuint loadTexture(const char* _filename)
 
 // --------------------------------
 
-GLuint createTexture(int _width, int _height, const unsigned char* _data, GLint _internal_format, GLenum _format, GLenum _type)
+GLuint createTexture(GLenum _texture_unit, int _width, int _height, const unsigned char* _data, GLint _internal_format, GLenum _format, GLenum _type)
 {
+  glActiveTexture(GL_TEXTURE0 + _texture_unit);
+
   GLuint texture_id = 0;
 
   glGenTextures(1, &texture_id);
@@ -178,6 +182,17 @@ GLuint createTexture(int _width, int _height, const unsigned char* _data, GLint 
   glTexImage2D(GL_TEXTURE_2D, 0, _internal_format, _width, _height, 0, _format, _type, _data);
 
   return texture_id;
+}
+
+// --------------------------------
+
+void resizeTexture(GLenum _texture_unit, GLuint _texture_id, int _width, int _height, GLint _internal_format, GLenum _format, GLenum _type)
+{
+  glActiveTexture(GL_TEXTURE0 + _texture_unit);
+
+  glBindTexture(GL_TEXTURE_2D, _texture_id);
+
+  glTexImage2D(GL_TEXTURE_2D, 0, _internal_format, _width, _height, 0, _format, _type, nullptr);
 }
 
 // --------------------------------

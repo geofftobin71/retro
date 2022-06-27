@@ -3,6 +3,6 @@
 
 #include <GLES3/gl3.h>
 
-GLuint loadFont();
+GLuint loadFont(GLenum _texture_unit);
 
 #endif
