@@ -6,6 +6,15 @@
 
 const unsigned int font_bitmap[]=
 {
+  0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+  0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+  0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+  0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+  0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+  0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+  0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+  0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+
   0x00000000, 0x00000000, 0x18181818, 0x00180000, 0x00666666, 0x00000000, 0x66FF6666, 0x006666FF,   //  !"#
   0x3C067C18, 0x00183E60, 0x18306646, 0x0062660C, 0x1C3C663C, 0x00FC66E6, 0x00183060, 0x00000000,   // $%&'
   0x0C0C1830, 0x0030180C, 0x3030180C, 0x000C1830, 0xFF3C6600, 0x0000663C, 0x7E181800, 0x00001818,   // ()*+
@@ -38,10 +47,10 @@ const unsigned int font_bitmap[]=
 
 GLuint loadFont(GLenum _texture_unit)
 {
-  unsigned char font_image[128 * 48];
+  unsigned char font_image[128 * 128] {};
   const unsigned int* font_bitmap_ptr = font_bitmap;
 
-  for(uint32_t tile_counter = 0; tile_counter < 16 * 6; ++tile_counter)
+  for(uint32_t tile_counter = 0; tile_counter < 16 * 8; ++tile_counter)
   {
     const uint32_t tile_x = tile_counter & 0xF;
     const uint32_t tile_y = tile_counter >> 4;
@@ -81,6 +90,6 @@ GLuint loadFont(GLenum _texture_unit)
     }
   }
 
-  return createTexture(_texture_unit, 128, 48, font_image, GL_R8, GL_RED, GL_UNSIGNED_BYTE);
+  return createTexture(_texture_unit, 128, 128, font_image, GL_R8, GL_RED, GL_UNSIGNED_BYTE);
 }
 
