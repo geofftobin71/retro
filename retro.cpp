@@ -14,6 +14,18 @@
 
 // --------------------------------
 
+EM_JS(void, chooseFile, (), {
+    const choose_file_dialog = document.getElementById("choose_file_dialog");
+    choose_file_dialog.style.display = "block";
+    });
+
+EM_JS(void, saveFile, (const char* _filename, const char* _data), {
+    var blob = new Blob([Module.UTF8ToString(_data)], { type: "text/plain;charset=utf-8" });
+    saveAs(blob, Module.UTF8ToString(_filename));
+    });
+
+// --------------------------------
+
 bool running = true;
 
 struct Window
@@ -64,9 +76,9 @@ VPU vpu;
 bool initWindow()
 {
   window.sdl_window = SDL_CreateWindow("Retro", 
-    SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-    window.width, window.height, 
-    SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_SHOWN);
+      SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+      window.width, window.height, 
+      SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_SHOWN);
 
   if(!window.sdl_window)
   {
@@ -381,6 +393,10 @@ bool startup(void)
   if(!initSDL()) { return false; }
   if(!initOpenGL()) { return false; }
 
+  // saveFile("game", "The time has come the Walrus said, to talk of many things.");
+
+  chooseFile();
+
   return true;
 }
 
@@ -440,9 +456,37 @@ void shutdown(void)
 
 // --------------------------------
 
+#ifdef __cplusplus
+extern "C" { // So that the C++ compiler does not rename our function names
+#endif
+
+#ifdef __EMSCRIPTEN__
+EMSCRIPTEN_KEEPALIVE
+#endif
+
+int loadFile(char* _data)
+{
+  printf("%s\n", _data);
+  return 0;
+}
+
+#ifdef __cplusplus
+}
+#endif
+
+// --------------------------------
+
 int main(int argc, char** argv)
 {
   if(!startup()) { return 1; }
+
+  EM_ASM(
+      var file_selector = document.createElement('input');
+      file_selector.setAttribute('type', 'file');
+      // file_selector.setAttribute('onchange','open_file(event)');
+      // file_selector.setAttribute('accept','.png,.jpeg'); // optional - limit accepted file types 
+      file_selector.click();
+      );
 
 #ifdef __EMSCRIPTEN__
   emscripten_set_main_loop(update, 0, true);

@@ -2,3 +2,4 @@
 *.html
 *.wasm
 *.png
+!FileSaver.js

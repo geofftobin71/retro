@@ -1,1 +1,1 @@
-emcc -std=c++11 retro.cpp opengl.cpp font.cpp -s USE_SDL=2 -s USE_SDL_IMAGE=2 -s SDL2_IMAGE_FORMATS='["png"]' -s MIN_WEBGL_VERSION=2 -s MAX_WEBGL_VERSION=2 --preload-file doom.png -o retro.js ; cp retro.* /var/www/html/emsdk/
+emcc -std=c++11 retro.cpp opengl.cpp font.cpp -s USE_SDL=2 -s USE_SDL_IMAGE=2 -s SDL2_IMAGE_FORMATS='["png"]' -s MIN_WEBGL_VERSION=2 -s MAX_WEBGL_VERSION=2 -s EXPORTED_RUNTIME_METHODS=['ccall','UTF8ToString','lengthBytesUTF8','stringToUTF8'] -o retro.js ; cp retro.* FileSaver.js /var/www/html/emsdk/
