@@ -163,7 +163,7 @@ GLuint loadTexture(GLenum _texture_unit, const char* _filename)
 
 // --------------------------------
 
-GLuint createTexture(GLenum _texture_unit, int _width, int _height, const unsigned char* _data, GLint _internal_format, GLenum _format, GLenum _type)
+GLuint createTexture(GLenum _texture_unit, int _width, int _height, const unsigned char* _data, GLint _internal_format, GLenum _format, GLenum _type, GLint _filter)
 {
   glActiveTexture(GL_TEXTURE0 + _texture_unit);
 
@@ -176,8 +176,8 @@ GLuint createTexture(GLenum _texture_unit, int _width, int _height, const unsign
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, _filter);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, _filter);
 
   glTexImage2D(GL_TEXTURE_2D, 0, _internal_format, _width, _height, 0, _format, _type, _data);
 

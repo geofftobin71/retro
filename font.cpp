@@ -90,6 +90,6 @@ GLuint loadFont(GLenum _texture_unit)
     }
   }
 
-  return createTexture(_texture_unit, 128, 128, font_image, GL_R8, GL_RED, GL_UNSIGNED_BYTE);
+  return createTexture(_texture_unit, 128, 128, font_image, GL_R8, GL_RED, GL_UNSIGNED_BYTE, GL_NEAREST);
 }
 

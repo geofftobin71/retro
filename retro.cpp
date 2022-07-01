@@ -63,9 +63,11 @@ struct VPU
   GLuint vao     = 0;
   GLuint vbo     = 0;
   GLuint fbo     = 0;
-  GLuint texture = 0;
+  GLuint font_texture = 0;
+  GLuint map_texture = 0;
 
-  GLuint texture_unit = 1;
+  GLuint font_texture_unit = 1;
+  GLuint map_texture_unit = 2;
   GLint  screen_size_location = 0;
 };
 
@@ -122,7 +124,7 @@ bool initDisplay()
   display.screen_size_location = glGetUniformLocation(display.program, "screen_size");
   glUniform2f(display.screen_size_location, display.width, display.height);
 
-  display.texture = createTexture(display.texture_unit, display.width, display.height, nullptr, GL_RGB, GL_RGB, GL_UNSIGNED_BYTE);
+  display.texture = createTexture(display.texture_unit, display.width, display.height, nullptr, GL_RGB8, GL_RGB, GL_UNSIGNED_BYTE, GL_LINEAR);
 
   if(!display.texture) { return false; }
 
@@ -238,7 +240,8 @@ void resizeDisplay(int width, int height)
   glUseProgram(display.program);
   glUniform2f(display.screen_size_location, display.width, display.height);
 
-  resizeTexture(display.texture_unit, display.texture, display.width, display.height, GL_RGB, GL_RGB, GL_UNSIGNED_BYTE);
+  resizeTexture(display.texture_unit, display.texture, display.width, display.height, GL_RGB8, GL_RGB, GL_UNSIGNED_BYTE);
+  resizeTexture(vpu.map_texture_unit, vpu.map_texture, display.width >> 3, display.height >> 3, GL_R8UI, GL_RED_INTEGER, GL_UNSIGNED_BYTE);
 
   printf("Display: %4d x %4d\n", display.width, display.height);
 }
@@ -291,15 +294,30 @@ bool initVPU()
   glVertexAttribPointer(uv_location, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (const void*)(2 * sizeof(GLfloat)));
 
   GLint font_sampler_location = glGetUniformLocation(vpu.program, "font_sampler");
-  glUniform1i(font_sampler_location, vpu.texture_unit);
+  glUniform1i(font_sampler_location, vpu.font_texture_unit);
+
+  GLint map_sampler_location = glGetUniformLocation(vpu.program, "map_sampler");
+  glUniform1i(map_sampler_location, vpu.map_texture_unit);
 
   vpu.screen_size_location = glGetUniformLocation(vpu.program, "screen_size");
   glUniform2f(vpu.screen_size_location, display.width, display.height);
 
-  vpu.texture = loadFont(vpu.texture_unit);
-  // vpu.texture = loadTexture(vpu.texture_unit, "doom.png");
+  vpu.font_texture = loadFont(vpu.font_texture_unit);
+  if(!vpu.font_texture) { return false; }
 
-  if(!vpu.texture) { return false; }
+  const int cell_count = (display.width >> 3) * (display.height >> 3);
+  uint8_t* map = (uint8_t*)malloc(cell_count);
+  uint8_t* map_ptr = map;
+
+  for(int i = cell_count; i--; ++map_ptr)
+  {
+    *map_ptr = rand() & 0xFF;
+  }
+
+  vpu.map_texture = createTexture(vpu.map_texture_unit, display.width >> 3, display.height >> 3, map, GL_R8UI, GL_RED_INTEGER, GL_UNSIGNED_BYTE, GL_NEAREST);
+  if(!vpu.map_texture) { return false; }
+
+  free(map);
 
   glGenFramebuffers(1, &vpu.fbo);
   glBindFramebuffer(GL_FRAMEBUFFER, vpu.fbo);
@@ -339,7 +357,7 @@ void destroyVPU()
   glDeleteProgram(vpu.program);
   glDeleteBuffers(1, &vpu.vbo);
   glDeleteVertexArrays(1, &vpu.vao);
-  glDeleteTextures(1, &vpu.texture);
+  glDeleteTextures(1, &vpu.font_texture);
   glDeleteFramebuffers(1, &vpu.fbo);
 }
 

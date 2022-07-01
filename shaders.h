@@ -59,16 +59,23 @@ R"FS(#version 300 es
 precision highp float;
 in vec2 pixel;
 out vec4 color;
-uniform sampler2D font_sampler;
+uniform highp sampler2D font_sampler;
+uniform highp usampler2D map_sampler;
 void main()
 {
   const vec4 bg = vec4(0.28, 0.23, 0.67, 1.0);
   const vec4 fg = vec4(0.53, 0.48, 0.87, 1.0);
 
-  float c = texelFetch(font_sampler, ivec2(pixel), 0).r;
-  color = mix(bg, fg, c);
+  uint cell = texelFetch(map_sampler, ivec2(pixel) >> 3, 0).r;
 
-  // color = texture(font_sampler, pixel);
+  uint cell_x = (cell & 0x0FU) << 3;
+  uint cell_y = (cell & 0xF0U) >> 1;
+
+  uint pixel_x = uint(pixel.x) & 0x07U;
+  uint pixel_y = uint(pixel.y) & 0x07U;
+
+  float c = texelFetch(font_sampler, ivec2(cell_x + pixel_x, cell_y + pixel_y), 0).r;
+  color = mix(bg, fg, c);
 }
 )FS";
 
