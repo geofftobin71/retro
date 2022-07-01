@@ -394,8 +394,7 @@ bool startup(void)
   if(!initOpenGL()) { return false; }
 
   // saveFile("game", "The time has come the Walrus said, to talk of many things.");
-
-  chooseFile();
+  // chooseFile();
 
   return true;
 }
@@ -479,14 +478,6 @@ int loadFile(char* _data)
 int main(int argc, char** argv)
 {
   if(!startup()) { return 1; }
-
-  EM_ASM(
-      var file_selector = document.createElement('input');
-      file_selector.setAttribute('type', 'file');
-      // file_selector.setAttribute('onchange','open_file(event)');
-      // file_selector.setAttribute('accept','.png,.jpeg'); // optional - limit accepted file types 
-      file_selector.click();
-      );
 
 #ifdef __EMSCRIPTEN__
   emscripten_set_main_loop(update, 0, true);
