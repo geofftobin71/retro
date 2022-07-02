@@ -5,6 +5,7 @@
 
 const char* pixel_upscale_vs =
 R"VS(#version 300 es
+precision highp float;
 in vec2 position;
 in vec2 uv;
 out vec2 pixel;
@@ -27,13 +28,11 @@ uniform vec2 screen_size;
 uniform sampler2D screen_sampler;
 void main()
 {
-  vec2 alpha = 0.7 * vec2(dFdx(pixel.x), dFdy(pixel.y));
-  vec2 x = fract(pixel);
-  vec2 x_ = clamp(0.5 / alpha * x, 0.0, 0.5) + clamp(0.5 / alpha * (x - 1.0) + 0.5, 0.0, 0.5);
+  vec2 seam = floor(pixel + 0.5);
+  vec2 dudv = fwidth(pixel);
+  vec2 uv = (seam + clamp((pixel - seam) / dudv, -0.5, 0.5)) / screen_size;
 
-  vec2 uv_ = (floor(pixel) + x_) / screen_size;
-
-  color = texture(screen_sampler, uv_);
+  color = texture(screen_sampler, uv);
 }
 )FS";
 
@@ -41,6 +40,7 @@ void main()
 
 const char* text_mode_vs =
 R"VS(#version 300 es
+precision highp float;
 in vec2 position;
 in vec2 uv;
 out vec2 pixel;
@@ -75,6 +75,7 @@ void main()
   uint pixel_y = uint(pixel.y) & 0x07U;
 
   float c = texelFetch(font_sampler, ivec2(cell_x + pixel_x, cell_y + pixel_y), 0).r;
+
   color = mix(bg, fg, c);
 }
 )FS";

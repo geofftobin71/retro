@@ -42,9 +42,9 @@ Window window;
 
 struct Display
 {
-  int    width   = 320;
-  int    height  = 240;
-  float  aspect  = 320.0f / 240.0f;
+  int    width   = 640;
+  int    height  = 480;
+  float  aspect  = 640.0f / 480.0f;
 
   GLuint program = 0;
   GLuint vao     = 0;
