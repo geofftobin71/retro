@@ -27,56 +27,82 @@ EM_JS(void, saveFile, (const char* _filename, const char* _data), {
 // --------------------------------
 
 bool running = true;
+GLuint next_texture_unit = 0;
 
 struct Window
 {
-  SDL_Window* sdl_window = nullptr;
-  Uint32 id = 0;
+  SDL_Window* sdl_window;
+  Uint32 id;
 
-  int    width  = 640;
-  int    height = 480;
-  float  aspect = 640.0f / 480.0f;
+  int    width;
+  int    height;
+  float  aspect;
 };
 
 Window window;
 
 struct Display
 {
-  int    width   = 640;
-  int    height  = 480;
-  float  aspect  = 640.0f / 480.0f;
+  int    width;
+  int    height;
+  int    cell_width;
+  int    cell_height;
+  float  aspect;
 
-  GLuint program = 0;
-  GLuint vao     = 0;
-  GLuint vbo     = 0;
-  GLuint texture = 0;
+  GLuint program;
+  GLuint vao;
+  GLuint vbo;
+  GLuint texture;
 
-  GLuint texture_unit = 0;
-  GLint  screen_size_location = 0;
+  GLuint texture_unit;
+  GLint  screen_size_location;
 };
 
 Display display;
 
 struct VPU
 {
-  GLuint program = 0;
-  GLuint vao     = 0;
-  GLuint vbo     = 0;
-  GLuint fbo     = 0;
-  GLuint font_texture = 0;
-  GLuint map_texture = 0;
+  GLuint program;
+  GLuint vao;
+  GLuint vbo;
+  GLuint fbo;
+  GLuint font_texture;
+  GLuint map_texture;
 
-  GLuint font_texture_unit = 1;
-  GLuint map_texture_unit = 2;
-  GLint  screen_size_location = 0;
+  GLuint font_texture_unit;
+  GLuint map_texture_unit;
+  GLint  screen_size_location;
 };
 
 VPU vpu;
 
 // --------------------------------
 
-bool initWindow()
+void setWindowSize(int _width, int _height)
 {
+  window.width = _width;
+  window.height = _height;
+  window.aspect = (float)_width / (float)_height;
+}
+
+// --------------------------------
+
+void setDisplaySize(int _width, int _height)
+{
+  display.width = _width;
+  display.height = _height;
+  display.aspect = (float)_width / (float)_height;
+
+  display.cell_width = _width / 8;
+  display.cell_height = _height / 8;
+}
+
+// --------------------------------
+
+bool initWindow(int _width, int _height)
+{
+  setWindowSize(_width, _height);
+
   window.sdl_window = SDL_CreateWindow("Retro", 
       SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
       window.width, window.height, 
@@ -95,8 +121,10 @@ bool initWindow()
 
 // --------------------------------
 
-bool initDisplay()
+bool initDisplay(int _width, int _height)
 {
+  setDisplaySize(_width, _height);
+
   glGenVertexArrays(1, &display.vao);
   glBindVertexArray(display.vao);
 
@@ -117,6 +145,8 @@ bool initDisplay()
   GLint uv_location = glGetAttribLocation(display.program, "uv");
   glEnableVertexAttribArray(uv_location);
   glVertexAttribPointer(uv_location, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (const void*)(2 * sizeof(GLfloat)));
+
+  display.texture_unit = next_texture_unit++;
 
   GLint screen_sampler_location = glGetUniformLocation(display.program, "screen_sampler");
   glUniform1i(screen_sampler_location, display.texture_unit);
@@ -213,11 +243,9 @@ void updateDisplayVBO()
 
 // --------------------------------
 
-void resizeWindow(int width, int height)
+void resizeWindow(int _width, int _height)
 {
-  window.width = width;
-  window.height = height;
-  window.aspect = (float)width / (float)height;
+  setWindowSize(_width, _height);
 
   updateDisplayVBO();
 
@@ -226,11 +254,9 @@ void resizeWindow(int width, int height)
 
 // --------------------------------
 
-void resizeDisplay(int width, int height)
+void resizeDisplay(int _width, int _height)
 {
-  display.width = width;
-  display.height = height;
-  display.aspect = (float)width / (float)height;
+  setDisplaySize(_width, _height);
 
   updateDisplayVBO();
 
@@ -241,7 +267,7 @@ void resizeDisplay(int width, int height)
   glUniform2f(display.screen_size_location, display.width, display.height);
 
   resizeTexture(display.texture_unit, display.texture, display.width, display.height, GL_RGB8, GL_RGB, GL_UNSIGNED_BYTE);
-  resizeTexture(vpu.map_texture_unit, vpu.map_texture, display.width >> 3, display.height >> 3, GL_R8UI, GL_RED_INTEGER, GL_UNSIGNED_BYTE);
+  resizeTexture(vpu.map_texture_unit, vpu.map_texture, display.cell_width, display.cell_height, GL_R8UI, GL_RED_INTEGER, GL_UNSIGNED_BYTE);
 
   printf("Display: %4d x %4d\n", display.width, display.height);
 }
@@ -293,8 +319,12 @@ bool initVPU()
   glEnableVertexAttribArray(uv_location);
   glVertexAttribPointer(uv_location, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (const void*)(2 * sizeof(GLfloat)));
 
+  vpu.font_texture_unit = next_texture_unit++;
+
   GLint font_sampler_location = glGetUniformLocation(vpu.program, "font_sampler");
   glUniform1i(font_sampler_location, vpu.font_texture_unit);
+
+  vpu.map_texture_unit = next_texture_unit++;
 
   GLint map_sampler_location = glGetUniformLocation(vpu.program, "map_sampler");
   glUniform1i(map_sampler_location, vpu.map_texture_unit);
@@ -305,7 +335,7 @@ bool initVPU()
   vpu.font_texture = loadFont(vpu.font_texture_unit);
   if(!vpu.font_texture) { return false; }
 
-  const int cell_count = (display.width >> 3) * (display.height >> 3);
+  const int cell_count = display.cell_width * display.cell_height;
   uint8_t* map = (uint8_t*)malloc(cell_count);
   uint8_t* map_ptr = map;
 
@@ -314,7 +344,7 @@ bool initVPU()
     *map_ptr = rand() & 0xFF;
   }
 
-  vpu.map_texture = createTexture(vpu.map_texture_unit, display.width >> 3, display.height >> 3, map, GL_R8UI, GL_RED_INTEGER, GL_UNSIGNED_BYTE, GL_NEAREST);
+  vpu.map_texture = createTexture(vpu.map_texture_unit, display.cell_width, display.cell_height, map, GL_R8UI, GL_RED_INTEGER, GL_UNSIGNED_BYTE, GL_NEAREST);
   if(!vpu.map_texture) { return false; }
 
   free(map);
@@ -358,6 +388,7 @@ void destroyVPU()
   glDeleteBuffers(1, &vpu.vbo);
   glDeleteVertexArrays(1, &vpu.vao);
   glDeleteTextures(1, &vpu.font_texture);
+  glDeleteTextures(1, &vpu.map_texture);
   glDeleteFramebuffers(1, &vpu.fbo);
 }
 
@@ -370,7 +401,7 @@ bool initSDL(void)
     return false;
   }
 
-  if(!initWindow()) { return false; }
+  if(!initWindow(640, 480)) { return false; }
 
   return true;
 }
@@ -396,10 +427,10 @@ bool initOpenGL(void)
   printf("%s\n",glGetString(GL_VERSION));
   printf("%s\n",glGetString(GL_SHADING_LANGUAGE_VERSION));
 
-  if(!initDisplay()) { return false; }
+  if(!initDisplay(320, 240)) { return false; }
   if(!initVPU()) { return false; }
 
-  resizeWindow(window.width, window.height);
+  resizeWindow(640, 480);
 
   return true;
 }
@@ -474,7 +505,7 @@ void shutdown(void)
 // --------------------------------
 
 #ifdef __cplusplus
-extern "C" { // So that the C++ compiler does not rename our function names
+extern "C" {
 #endif
 
 #ifdef __EMSCRIPTEN__
